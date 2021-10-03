@@ -1,0 +1,227 @@
+---
+title: "Lab 6 Relational data (50 points)"
+author: "Fang Fang"
+date: "3/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+You will try to establish your own script. 
+
+1. Create a new folder called "Lab6". 
+
+2. Create a subfolder called "data".
+
+3. Download the data from COMPASS, save it under the data folder. 
+
+3. Open RStudio, establish a new project under Lab6. 
+
+4. Go to File---New file---R script. Name it as Lab6_part2.r. Save this script under Lab6 folder. 
+
+
+Please refer to the slides or the cheatsheet, select a proper function to finish the following tasks. Pipes are highly recommended here for this assignment. 
+
+
+
+# Pipe: SHIFT+CTRL+M
+
+## Part 2: Education level and housing/income analysis using ACS and NHGIS data
+
+We will work with three types of datasets today. 
+
+The first two datasets were downloaded from American Community Survey Dataset (https://www.census.gov/programs-surveys/acs) 
+
+As suggested from the official website, the U.S. Census Bureau’s American Community Survey (ACS) is designed to answer all types of questions and to meet the needs of policymakers, business leaders, planners, and others nationwide who need good data to make informed decisions.
+
+The third dataset is downloaded from National Historical Geographic Information System Dataset.(https://www.nhgis.org)
+
+There are many other ways to get Census data by download them directly from the websites. National Historical Geographic Information System (NHGIS) is one of those websites which provides a more user-friendly way to select variables. You can find the help page of NHGIS here:
+https://www.nhgis.org/user-resources/users-guide
+
+
+
+Please download these three datasets from compass:
+
+1) `Education_Data.csv`
+2) `IL_housing.csv`
+3) `CENSUS2017_county_raw.csv`
+
+---
+### 1. Education_Data.csv
+This document includes information about the educational attainment for the population 25 years and over across the entire country at county level. I have also uploaded a `Education_help.txt` file to COMPASS which includes all details of column names.
+
+### 2. IL_housing.csv
+
+Below is the columns information for `IL_housing.csv`. 
+
+Column name  | Description
+------------- | -------------
+ID  | Numeric codes that uniquely identify all administrative/legal and statistical geographic areas for which the Census Bureau tabulates data
+medhousingv | Median Housing Values
+medgrossrent| Median gross Rent for Housing
+
+### 3. IL_housing.csv
+The ACS dataset includes information from 2013-2017 5-year ACS in Illinois at county level.Below is the detailed information for `census.csv`
+
+Column name  | Description
+------------- | -------------
+GEOID  | Numeric codes that uniquely identify all administrative/legal and statistical geographic areas for which the Census Bureau tabulates data
+County  | County Name
+State | State Name
+hhincome | Median Household income 
+medage | Median Age
+pop| Population in Total
+White | Total population White alone
+Black | Total population Black or African American alone
+Native | Total population American Indian and Alaska Native alone
+Asian | Total population Asian alone
+
+### Load dataset:
+
+Type and execute the script below. 
+```{r echo=FALSE}
+library(tidyverse)
+housing <- read_csv("data/IL_housing.csv")
+education <- read_csv("data/Education_Data.csv")
+census <- read_csv("data/CENSUS2017_county_raw.csv")
+```
+
+The ***housing*** dataset (from ACS Census) contains 102 rows (obs.) and 3 columns (variables).
+
+The ***education*** census dataset (from NHGIS) contains 3220 rows (obs.) and 80 columns (variables).
+
+The ***census*** data: The dataset includes information from 2013-2017 5-year ACS at county level across entire country. It contains 3220 rows (obs.) and 10 columns (variables).
+
+
+
+## Preps 
+Before we start, let's examine the dataset especially columns. We need all the columns from `census` and `Housing`. However, we need to take out some columns in `education` dataset. 
+
+Type and execute the commands below. 
+We need to remove these columns: 1) columns from ***COUSUBA*** to ***BTBGA***.  2) columns from  ***AH04M001*** to ***AH04M025***. 
+Name the output dataset `education_clean`. You should have 3220 rows and 27 columns after this step. 
+
+```{r }
+education_clean <- education %>% select(-(COUSUBA:BTBGA),-(AH04M001:AH04M025))
+```
+
+
+We have three tables this time. If we want to join any of these tables, we need to identify primary key and foreign keys. A primary key uniquely identifies an observation in its own table.
+
+## Question 1
+Examine the data called `census`. According to the information provided above, which column/variable is the primary key? 
+
+
+
+Here is more information about `GEOID`. All the datasets we use today are at county level, so the GEOID at county level consists of 5 digits, where: first 2 digits are state code, and last 3 are county code. Please visit https://www.census.gov/programs-surveys/geography/guidance/geo-identifiers.html for more information. 
+
+GEOIDs are very important for understanding and interpreting geographic and demographic data and their relationship to one another: e.g. our housing, education and housing data. Other commonly used dataset e.g. the American Community Survey (ACS) also use GEOID to store various levels of geography datasets. Without a common identifier among geographic and demographic datasets, it will be very hard for us to match the appropriate demographic data with the appropriate geographic data.
+
+
+Examine the data called `education_clean`. You will find that this `education_clean` does not contain any information e.g. state name or county name. But it contains these two columns:`STATEA` and `COUNTYA`. 
+
+## Question 2 
+Can you easily find any single column which can be treated as a primary key in `education_clean`? Can you join this table to `census` directly? Note you can read the help.txt for more information about all the columns. 
+
+
+In fact, for this `education_clean`dataset,  column `STATEA` is the state code (2 digits) and  column `COUNTYA` is the county code (3 digits). If we can combine this two column, it will be identical to the `GEOID` in `census`, and we can use this column as a foreign key to match `census` table. 
+
+## Question 3  
+Based on what you found in Question 2, use proper function(s)(e.g. `select`, `mutate`, `unite` or `filter`?) to combine state code and county code columns together as a new column (name it `GEOID`). Name the output dataset as `education_clean_ID`. 
+
+
+```{r}
+education_clean_ID <- education_clean %>% unite (GEOID,STATEA, COUNTYA, sep="")
+
+```
+
+
+Now both `census` and `education_clean_ID` has a common variable called `GEOID`. We can join these two tables.  Let's answer these questions below. 
+
+# Question 4
+For `education_clean_ID`, the column called `AH04E025`means population holding a doctorate degree in that county. 
+
+Which state has the most population holding a doctorate degree on average? 
+
+Hint: Pipes are highly recommended here.You need to report the name of the state. You can refer to task 2 in part1 excercise. 
+
+To answer this question, first, use a proper join function to match `education_clean_ID` with `census`.Note they have a common column called `GEOID`, so you do not need to specify keys within the join function. 
+
+Next, compute the average `AH04E025` by State (use group by and summarise, remember to remove NAs). The last step is to rank the average population holding a doctorate degree in descending order.
+
+
+```{r}
+census %>% left_join(education_clean_ID, by = "GEOID") %>% group_by(State) %>% summarise(doctor=mean(AH04E025, na.rm=T)) %>% arrange(desc(doctor))
+```
+
+
+# Question 5 
+Which counties have more than 60% of the residents who have a bachelors' degree or higher? Note you need to provide county names for this questions. 
+
+Hint: again we need to join `education_clean_ID` to `census` first.
+
+Next, use `mutate` to create a new variable which calculates the proportion of residents who have a bachelors' degree or higher. Let's name the new variable `pHE` (HE stands for higher education). 
+
+According to the `Education_help.txt`, these columns represent a bachelor's degree or higher: `AH04E022`,`AH04E023`,`AH04E024` and `AH04E025`. The total number of population is `AH04E001`. 
+So the calculation will be `pHE = (AH04E022+AH04E023+AH04E024+AH04E025)/AH04E001`. 
+
+After the new column pHE is created, we need to use a proper function (`filter`, `select` or `unite`? )to subset counties with pHE>0.6. Name the output `county_high_education`.
+
+Try to use pipes for this question. 
+
+```{r}
+county_high_education <- census %>% left_join(education_clean_ID, by = "GEOID") %>% mutate(pHE = (AH04E022+AH04E023+AH04E024+AH04E025)/AH04E001) %>% filter(pHE>0.6)
+```
+
+
+# Question 6
+Examine the housing dataset. The `ID` column is `GEOID`, and we can use this column as a foreign key to join the `census` data. 
+Before the join process, execute the script provided below to convert `ID` as a character variable. 
+```{r}
+housing$ID <- as.character(housing$ID)
+```
+
+
+Extract and subset census data (only preserve columns from `census`), that these counties has a median housing value over $200,000. Name it `housing_value_census`. Please provide a data preview (screenshot) as your answer. 
+You should only have 7 rows and 10 columns (only from `census`) for this `housing_value_census`. 
+
+
+Hint: You need to fiter out rows in housing first (medhousingv>200000). Save it as housing_20000.
+Then use `semi_join` to subset records for these counties only from `census` data. They have no common variables, so you need to specify column names as keys within `semi_join` function. 
+
+```{r}
+housing_20000 <- housing %>% filter(medhousingv>200000)
+census %>% semi_join(housing_20000, c("GEOID"="ID"))
+```
+
+# Questoin 7
+To follow up on question 6, does the median houese value relate to the median household income in census data? 
+
+Let's set median house value greater than $200,000 as expensive, and below $200,000 as not expensive.
+
+What is the average median household income for these two groups: 1) median house value greater than 200000; 2) median house value less than 200000?
+
+You can refer to task 5 in part1 excercise.
+
+Hint:
+
+1. Let's first organize the `housing` data. We need a new column (let's name it as `value`) to specify if the median housing value is greater than 200000. If it is greater than 200000, we name it `TRUE`, otherwise, it is `FALSE.` Name the new table `housing_new`. 
+
+2. Apply a proper join function with the `census` dataset. Again you need to specify the keys here. 
+
+
+3. The last step is to group and summarise what is the average median household income for each group: 1) median house value greater than 200000; 2) median house value less than 200000.
+
+
+```{r}
+housing_new <- housing %>% mutate(value=medhousingv>200000)
+census %>% left_join(housing_new, c("GEOID"="ID")) %>% group_by(value) %>% summarise(ave_income=mean(hhincome, na.rm=T))
+```
+
+***Please type your answer in the word document***
+
+You are done with part 2. Submit your answers as a word document in COMPASS. 
+
